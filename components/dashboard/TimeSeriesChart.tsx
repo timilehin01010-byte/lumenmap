@@ -1,18 +1,77 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, HelpCircle, TrendingUp } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, GitCompareArrows, HelpCircle, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/components/dashboard/DashboardProvider";
 import { formatNumber } from "@/lib/utils";
 
+const SUPPORTED_PERIODS = ["1h", "24h", "7d", "30d", "90d"] as const;
+type SupportedPeriod = (typeof SUPPORTED_PERIODS)[number];
+
+type TimeseriesBucket = {
+  operations: number;
+  transactions: number;
+  label: string;
+  isPartial?: boolean;
+};
+
+type TimeseriesData = {
+  buckets: TimeseriesBucket[];
+  granularity?: string;
+};
+
+function isSupportedPeriod(value: string | null): value is SupportedPeriod {
+  return !!value && (SUPPORTED_PERIODS as readonly string[]).includes(value);
+}
+
+function formatSignedNumber(value: number): string {
+  if (value <= 0) return formatNumber(value);
+  return `+${formatNumber(value)}`;
+}
+
+function formatPercentChange(current: number, previous: number): string {
+  if (previous === 0) return current === 0 ? "0.0%" : "—";
+  const change = ((current - previous) / previous) * 100;
+  const sign = change > 0 ? "+" : "";
+  return `${sign}${change.toFixed(1)}%`;
+}
+
 export function TimeSeriesChart() {
   const { data, isLoading, isError, error } = useDashboard();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const compareEnabled = searchParams.get("compare") === "1";
+  const baselineParam = searchParams.get("baseline");
+  const comparisonParam = searchParams.get("comparison");
+  const baselinePeriod = isSupportedPeriod(baselineParam) ? baselineParam : "1d";
+  const comparisonPeriod = isSupportedPeriod(comparisonParam) ? comparisonParam : "7d";
+
+  const updateComparePeriods = (nextBaseline: string, nextComparison: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("compare", "1");
+    params.set("baseline", nextBaseline);
+    params.set("comparison", nextComparison);
+    router.replace(`?${params.toString()}`, { scroll: false });
+  };
 
   const timeseries = data?.timeseries;
+  const comparisonTimeseries = compareEnabled
+    ? (data as unknown as { comparisonTimeseries?: TimeseriesData } | null)
+        ?.comparisonTimeseries
+    : undefined;
+  const comparisonError = compareEnabled
+    ? (data as unknown as { comparisonError?: string } | null)?.comparisonError
+    : undefined;
   const buckets = useMemo(() => timeseries?.buckets ?? [], [timeseries]);
+  const comparisonBuckets = useMemo(
+    () => (compareEnabled ? comparisonTimeseries?.buckets ?? [] : []),
+    [compareEnabled, comparisonTimeseries],
+  );
 
   // Calculate scales and geometry for responsive SVG
   const width = 800;
@@ -23,14 +82,18 @@ export function TimeSeriesChart() {
   const chartHeight = height - padding.top - padding.bottom;
 
   const maxVal = useMemo(() => {
-    if (buckets.length === 0) return 100;
+    if (buckets.length === 0 && comparisonBuckets.length === 0) return 100;
     let max = 0;
     for (const b of buckets) {
       if (b.operations > max) max = b.operations;
       if (b.transactions > max) max = b.transactions;
     }
+    for (const b of comparisonBuckets) {
+      if (b.operations > max) max = b.operations;
+      if (b.transactions > max) max = b.transactions;
+    }
     return max === 0 ? 100 : Math.ceil(max * 1.15);
-  }, [buckets]);
+  }, [buckets, comparisonBuckets]);
 
   // Points computation
   const points = useMemo(() => {
@@ -98,6 +161,42 @@ export function TimeSeriesChart() {
     return points.filter((_, i) => i % interval === 0 || i === points.length - 1);
   }, [points]);
 
+  const baselineTotals = useMemo(() => {
+    let operations = 0;
+    let transactions = 0;
+    for (const b of buckets) {
+      operations += b.operations;
+      transactions += b.transactions;
+    }
+    return { operations, transactions };
+  }, [buckets]);
+
+  const comparisonTotals = useMemo(() => {
+    let operations = 0;
+    let transactions = 0;
+    for (const b of comparisonBuckets) {
+      operations += b.operations;
+      transactions += b.transactions;
+    }
+    return { operations, transactions };
+  }, [comparisonBuckets]);
+
+  const compareSummary =
+    compareEnabled && comparisonBuckets.length > 0
+      ? {
+          operationsDelta: comparisonTotals.operations - baselineTotals.operations,
+          transactionsDelta: comparisonTotals.transactions - baselineTotals.transactions,
+          operationsPercent: formatPercentChange(
+            comparisonTotals.operations,
+            baselineTotals.operations,
+          ),
+          transactionsPercent: formatPercentChange(
+            comparisonTotals.transactions,
+            baselineTotals.transactions,
+          ),
+        }
+      : null;
+
   // Handle explicit states
   if (isLoading) {
     return (
@@ -152,6 +251,85 @@ export function TimeSeriesChart() {
           <p className="text-xs text-zinc-400">
             Bucket trend comparison of operations vs transactions ({timeseries?.granularity === "hour" ? "hourly" : "daily"} UTC buckets)
           </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              if (compareEnabled) {
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete("compare");
+                params.delete("baseline");
+                params.delete("comparison");
+                router.replace(`?${params.toString()}`, { scroll: false });
+              } else {
+                updateComparePeriods(baselinePeriod, comparisonPeriod);
+              }
+            }}
+            className="inline-flex items-center gap-1.5 rounded-md border border-cyan-900/50 bg-cyan-950/30 px-2.5 py-1 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-950/50"
+          >
+            <GitCompareArrows className="h-3.5 w-3.5" />
+            {compareEnabled ? "Exit compare" : "Compare"}
+          </button>
+
+          {compareEnabled && (
+            <>
+              <label className="flex items-center gap-1.5">
+                <span className="text-zinc-400">Baseline</span>
+                <select
+                  value={baselinePeriod}
+                  onChange={(event) => updateComparePeriods(event.target.value, comparisonPeriod)}
+                  className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs font-medium text-zinc-200 focus:border-cyan-700 focus:outline-none"
+                >
+                  {SUPPORTED_PERIODS.map((period) => (
+                    <option key={period} value={period}>
+                      {period}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex items-center gap-1.5">
+                <span className="text-zinc-400">Comparison</span>
+                <select
+                  value={comparisonPeriod}
+                  onChange={(event) => updateComparePeriods(baselinePeriod, event.target.value)}
+                  className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs font-medium text-zinc-200 focus:border-cyan-700 focus:outline-none"
+                >
+                  {SUPPORTED_PERIODS.map((period) => (
+                    <option key={period} value={period}>
+                      {period}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              {compareSummary ? (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-l border-zinc-800 pl-3 font-mono text-[11px]">
+                  <span className="text-zinc-400">
+                    Ops{" "}
+                    <span className="text-cyan-300">
+                      {formatSignedNumber(compareSummary.operationsDelta)}
+                    </span>{" "}
+                    <span className="text-zinc-500">({compareSummary.operationsPercent})</span>
+                  </span>
+                  <span className="text-zinc-400">
+                    Tx{" "}
+                    <span className="text-amber-300">
+                      {formatSignedNumber(compareSummary.transactionsDelta)}
+                    </span>{" "}
+                    <span className="text-zinc-500">({compareSummary.transactionsPercent})</span>
+                  </span>
+                </div>
+              ) : (
+                compareEnabled && (
+                  <span className="text-xs text-amber-400/90">
+                    {comparisonError ?? `Comparison data unavailable for ${comparisonPeriod}.`}
+                  </span>
+                )
+              )}
+            </>
+          )}
         </div>
 
         {/* Accessible Legend - Visual distinction without color alone */}
