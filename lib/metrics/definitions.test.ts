@@ -16,6 +16,8 @@ describe("dashboard metric definitions", () => {
   it("defines every selectable KPI metric", () => {
     assert.deepEqual(DASHBOARD_METRIC_IDS.sort(), [
       "activeContracts",
+      "activeDestinationAccounts",
+      "activeWallets",
       "sorobanShare",
       "topCategory",
       "totalOps",
@@ -69,6 +71,7 @@ describe("methodology sections", () => {
       "payment-volume",
       "tvl",
       "active-accounts",
+      "active-destination-accounts",
       "active-contracts",
     ] as const;
     for (const id of required) {

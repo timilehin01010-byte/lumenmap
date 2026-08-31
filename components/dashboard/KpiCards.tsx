@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Boxes, Layers, Zap } from "lucide-react";
+import { Activity, Boxes, Layers, Wallet, Zap, ArrowDown } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MetricInfo } from "@/components/metrics/MetricInfo";
@@ -33,6 +33,16 @@ const KPI_CONFIG = [
     icon: Boxes,
     format: (value: number) => formatNumber(value),
   },
+  {
+    key: "activeWallets" as const satisfies KpiMetricId,
+    icon: Wallet,
+    format: (value: number) => formatNumber(value),
+  },
+  {
+    key: "activeDestinationAccounts" as const satisfies KpiMetricId,
+    icon: ArrowDown,
+    format: (value: number) => formatNumber(value),
+  },
 ];
 
 export function KpiCards() {
@@ -42,7 +52,7 @@ export function KpiCards() {
   if (isLoading || !data) {
     return (
       <div
-        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 lg:gap-4"
         aria-busy="true"
       >
         {KPI_CONFIG.map((item) => (
@@ -66,7 +76,7 @@ export function KpiCards() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 lg:gap-4">
       {KPI_CONFIG.map((item) => {
         const Icon = item.icon;
         const metric = METRIC_DEFINITIONS[item.key];
