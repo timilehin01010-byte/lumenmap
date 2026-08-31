@@ -19,6 +19,10 @@ import { useState, useEffect, useCallback } from "react";
 
 const SUPPORTED_PERIODS = ["1d", "7d", "30d", "90d"];
 
+function normalizePeriod(period: string | null, fallback: string): string {
+  return period !== null && SUPPORTED_PERIODS.includes(period) ? period : fallback;
+}
+
 function formatPercent(value: number): string {
   const sign = value > 0 ? "+" : "";
   return `${sign}${value.toFixed(1)}%`;
@@ -102,8 +106,12 @@ function PeriodPanel({ title, query }: { title: string; query: { data: any; erro
 }
 
 function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; comparison: string; onExit: () => void }) {
-  const [base, setBase] = useState(baseline);
-  const [comp, setComp] = useState(comparison);
+  const [base, setBase] = useState(() => normalizePeriod(baseline, "1d"));
+  const [comp, setComp] = useState(() => normalizePeriod(comparison, "7d"));
+  useEffect(() => {
+    setBase(normalizePeriod(baseline, "1d"));
+    setComp(normalizePeriod(comparison, "7d"));
+  }, [baseline, comparison]);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -188,14 +196,14 @@ function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; 
             <div>
               <p className="text-sm text-zinc-400">Total Operations</p>
               <p className="text-2xl font-semibold text-white">
-                {totalDelta >= 0 ? "+" : ""}{totalDelta.toLocaleString()}
+                {totalDelta > 0 ? "+" : ""}{totalDelta.toLocaleString()}
                 <span className="ml-2 text-base text-zinc-400">({formatPercent(totalDeltaPct)})</span>
               </p>
             </div>
             <div>
               <p className="text-sm text-zinc-400">Soroban Share</p>
               <p className="text-2xl font-semibold text-white">
-                {shareDelta >= 0 ? "+" : ""}{shareDelta.toFixed(2)}
+                {shareDelta > 0 ? "+" : ""}{shareDelta.toFixed(2)}
                 <span className="ml-2 text-base text-zinc-400">({formatPercent(shareDeltaPct)})</span>
               </p>
             </div>
@@ -280,22 +288,23 @@ export function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isCompare = searchParams.get("compare") === "true";
-  const baseline = searchParams.get("baseline") || "1d";
-  const comparison = searchParams.get("comparison") || "7d";
+  const baseline = normalizePeriod(searchParams.get("baseline"), "1d");
+  const comparison = normalizePeriod(searchParams.get("comparison"), "7d");
 
   const handleCompareModeChange = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
-    const currentPeriod = searchParams.get("period") || "1d";
+    const currentPeriod = normalizePeriod(searchParams.get("period"), "1d");
+    const nextComparison = comparison === currentPeriod ? (currentPeriod === "1d" ? "7d" : "1d") : comparison;
     params.set("compare", "true");
     params.set("baseline", currentPeriod);
-    params.set("comparison", comparison);
+    params.set("comparison", nextComparison);
     params.delete("period");
     router.replace(`?${params.toString()}`);
   }, [searchParams, comparison, router]);
 
   const handleExitCompare = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
-    const baselineExit = searchParams.get("baseline") || "1d";
+    const baselineExit = normalizePeriod(searchParams.get("baseline"), "1d");
     params.delete("compare");
     params.delete("baseline");
     params.delete("comparison");
