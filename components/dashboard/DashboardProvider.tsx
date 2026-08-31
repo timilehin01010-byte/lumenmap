@@ -276,7 +276,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isFetching: query.isFetching,
       error: query.error,
       refetch: query.refetch,
-      comparisonData: comparePeriod && !compareQuery.isError ? compareQuery.data : undefined,
+      comparisonData: comparePeriod ? compareQuery.data : undefined,
       comparisonIsLoading: comparePeriod ? compareQuery.isLoading : false,
       comparisonIsError: comparePeriod ? compareQuery.isError : false,
       comparisonIsFetching: comparePeriod ? compareQuery.isFetching : false,
