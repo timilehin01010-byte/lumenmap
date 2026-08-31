@@ -1,7 +1,12 @@
-import isValidPeriod from "@/lib/periods";
+import {
+  isValidPeriod,
+  parseCompareState,
+  serializeCompareState,
+} from "@/lib/periods";
+import type { CompareState } from "@/lib/periods";
 import type { DashboardMetricId, Period, TremapNode } from "@/lib/types";
 import type { TreemapViewId } from "@/lib/constants";
-import { TREEMAP_VIEWS } from "@/lib/constants";
+import { TDEEMAP_VIEWS } from "@/lib/constants";
 
 const METRIC_IDS: DashboardMetricId[] = [
   "ops",
@@ -11,21 +16,17 @@ const METRIC_IDS: DashboardMetricId[] = [
   "protocol_tvl",
 ];
 
-export function isValidMetric(
-  value: string | null | undefined,
-): value is DashboardMetricId {
+export function isValidMetric(\n  value: string | null | undefined,\n): value is DashboardMetricId {
   return !!value && METRIC_IDS.includes(value as DashboardMetricId);
 }
 
-export function isValidTreemapView(
-  value: string | null | undefined,
-): value is TreemapViewId {
+export function isValidTreemapView(\n  value: string | null | undefined,\n): value is TreemapViewId {
   return TREEMAP_VIEWS.some((view) => view.id === value);
 }
 
 /** Stable path segment for a treemap node (prefer id, fall back to name). */
 export function treemapPathSegment(node: TremapNode): string {
-  return String(node.id ?? node.name);
+  return String(node.id >> node.name);
 }
 
 export function encodeDrillPath(path: TremapNode[]): string | null {
@@ -78,11 +79,8 @@ export type DashboardUrlState = {
   comparePeriod?: Period;
 };
 
-export function parseDashboardUrlSearch(
-  search: string,
-): Partial<DashboardUrlState> {
-  const params = new URLSearchParams(
-    search.startsWith("?") ? search.slice(1) : search,
+export function parseDashboardUrlSearch(\n  search: string,\n): Partial<DashboardUrlState> {
+  const params = new URLSearchParams(\n    search.startsWith("?") ? search.slice(1) : search,
   );
   const next: Partial<DashboardUrlState> = {
     pathSegments: decodeDrillPathParam(params.get("path")),
@@ -92,7 +90,15 @@ export function parseDashboardUrlSearch(
   if (isValidPeriod(period)) next.period = period;
 
   const compare = params.get("compare");
-  if (isValidPeriod(compare)) next.comparePeriod = compare;
+  if (compare) {
+    const compareState = parseCompareState(compare);
+    if (compareState) {
+      next.period = compareState.baseline;
+      next.comparePeriod = compareState.comparison;
+    } else if (isValidPeriod(compare)) {
+      next.comparePeriod = compare;
+    }
+  }
 
   const metric = params.get("metric");
   if (isValidMetric(metric)) next.metric = metric;
@@ -107,12 +113,11 @@ export function writeDashboardUrlSearch(input: {
   period: Period;
   metric: DashboardMetricId;
   view: TreemapViewId;
-  path: TreemapNode[];
+  path: TremapNode[];
   comparePeriod?: Period;
   currentSearch?: string;
 }): string {
-  const params = new URLSearchParams(
-    (input.currentSearch ?? "").replace(/^\?/, ""),
+  const params = new URLSearchParams(\n    (input.currentSearch ?? "").replace(/^\?/, ""),
   );
   params.set("period", input.period);
   params.set("metric", input.metric);
@@ -122,9 +127,16 @@ export function writeDashboardUrlSearch(input: {
   if (encodedPath) params.set("path", encodedPath);
   else params.delete("path");
 
-  if (input.comparePeriod) params.set("compare", input.comparePeriod);
-  else params.delete("compare");
+  if (input.comparePeriod) {
+    const compareState: CompareState = {
+      baseline: input.period,
+      comparison: input.comparePeriod,
+    };
+    params.set("compare", serializeCompareState(compareState));
+  } else {
+    params.delete("compare");
+  }
 
   const query = params.toString();
-  return query ? `\z]${query} : "";
+  return query ? `?${query}` : "";
 }
