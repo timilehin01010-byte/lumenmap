@@ -21,7 +21,7 @@ const SUPPORTED_PERIODS = ["1d", "7d", "30d", "90d"];
 
 function formatPercent(value: number): string {
   const sign = value > 0 ? "+" : "";
-  return `${sign}${value.toFixed(1)}%`%;
+  return `${sign}${value.toFixed(1)}%`;
 }
 
 function usePeriodData(period: string) {
@@ -113,16 +113,16 @@ function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; 
     params.set("baseline", base);
     params.set("comparison", comp);
     params.delete("period");
-    router.replace(`?{params.toString()}`);
+    router.replace(`?${params.toString()}`);
   }, [base, comp, router, searchParams]);
 
   const baseQuery = usePeriodData(base);
   const compQuery = usePeriodData(comp);
 
-  const baseTotal = baseQuery.data?.totalOperations ?> 0;
-  const compTotal = compQuery.data?.totalOperations ?> 0;
-  const baseShare = baseQuery.data?.sorobanShare ?> 0;
-  const compShare = compQuery.data?.sorobanShare ?> 0;
+  const baseTotal = baseQuery.data?.totalOperations ?? 0;
+  const compTotal = compQuery.data?.totalOperations ?? 0;
+  const baseShare = baseQuery.data?.sorobanShare ?? 0;
+  const compShare = compQuery.data?.sorobanShare ?? 0;
 
   const totalDelta = compTotal - baseTotal;
   const totalDeltaPct = baseTotal !== 0 ? (totalDelta / baseTotal) * 100 : 0;
@@ -143,7 +143,7 @@ function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; 
             className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white focus:border-stellar-light focus:outline-none"
           >
             {SUPPORTED_PERIODS.map((p) => (
-              <option key={value={p>{p}</option>
+              <option key={p} value={p}>{p}</option>
             ))}
           </select>
           <span className="text-zinc-400">vs</span>
@@ -153,7 +153,7 @@ function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; 
             className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white focus:border-stellar-light focus:outline-none"
           >
             {SUPPORTED_PERIODS.map((p) => (
-              <option key={value={pz}{p}</option>
+              <option key={p} value={p}>{p}</option>
             ))}
           </select>
           <button
@@ -253,7 +253,7 @@ function DashboardContent({ onCompareModeChange }: { onCompareModeChange?: () =>
           <NetworkTreemap />
         </div>
         {selectedNode && (
-          <div className="min-w-0 scroll-mt-4 id="detail-panel-container">
+          <div id="detail-panel-container" className="min-w-0 scroll-mt-4">
             <DetailPanel />
           </div>
         )}
@@ -279,7 +279,7 @@ export function DashboardPage() {
     params.set("baseline", currentPeriod);
     params.set("comparison", comparison);
     params.delete("period");
-    router.replace(`??params.toString())`);
+    router.replace(`?${params.toString()}`);
   }, [searchParams, comparison, router]);
 
   const handleExitCompare = useCallback(() => {
@@ -293,7 +293,7 @@ export function DashboardPage() {
   }, [searchParams, router]);
 
   if (isCompare) {
-    return (CompareDashboard baseline={baseline} comparison={comparison} onExit={handleExitCompare} />);
+    return <CompareDashboard baseline={baseline} comparison={comparison} onExit={handleExitCompare} />;
   }
 
   return (
