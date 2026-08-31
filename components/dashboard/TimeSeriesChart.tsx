@@ -69,8 +69,8 @@ export function TimeSeriesChart() {
     : undefined;
   const buckets = useMemo(() => timeseries?.buckets ?? [], [timeseries]);
   const comparisonBuckets = useMemo(
-    () => (compareEnabled ? comparisonTimeseries?.buckets ?? [] : []),
-    [compareEnabled, comparisonTimeseries],
+    () => (compareEnabled && !comparisonError ? comparisonTimeseries?.buckets ?? [] : []),
+    [compareEnabled, comparisonError, comparisonTimeseries],
   );
 
   // Calculate scales and geometry for responsive SVG
@@ -218,7 +218,7 @@ export function TimeSeriesChart() {
   }, [comparisonBuckets]);
 
   const compareSummary =
-    compareEnabled && comparisonBuckets.length > 0
+    compareEnabled && comparisonBuckets.length > 0 && !comparisonError
       ? {
           operationsDelta: comparisonTotals.operations - baselineTotals.operations,
           transactionsDelta: comparisonTotals.transactions - baselineTotals.transactions,
@@ -359,7 +359,13 @@ export function TimeSeriesChart() {
                     </span>
                   </span>
                 </div>
-              ) : null}
+              ) : (
+                compareEnabled && (
+                  <span className="text-xs text-amber-400/90">
+                    {comparisonError ?? `Comparison data unavailable for ${comparisonPeriod}.`}
+                  </span>
+                )
+              )}
             </>
           )}
         </div>
@@ -480,7 +486,8 @@ export function TimeSeriesChart() {
             )}
           </div>
         ) : (
-          <div className="flex h-[260px] items-center justify-center text-sm text-zinc-500">
+          <div className="flex h-[260px] items-center justify-center gap-2 text-sm text-zinc-500">
+            <HelpCircle className="h-4 w-4" />
             No activity data available for the selected period
           </div>
         )}
