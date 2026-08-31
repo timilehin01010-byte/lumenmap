@@ -158,7 +158,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Defer state updates so hydration does not cascade synchronously in the effect body.
     queueMicrotask(() => {
       if (parsed.period) setPeriodState(parsed.period);
-      setComparePeriodState(compareParam as Period | null);
+      setComparePeriodState(
+        compareParam
+          ? parseDashboardUrlSearch(
+              `?period=${encodeURIComponent(compareParam)}`,
+            ).period ?? null
+          : null,
+      );
       if (parsed.metric) setMetricState(parsed.metric);
       if (parsed.view) setTreemapViewState(parsed.view);
       setUrlReady(true);
@@ -205,7 +211,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const compareQuery = useQuery({
     queryKey: ["activity", "compare", comparePeriod],
     queryFn: () => fetchActivity(comparePeriod as Period),
-    enabled: comparePeriod !== null,
+    enabled: Boolean(comparePeriod),
     staleTime: 60_000,
   });
 
