@@ -63,8 +63,14 @@ async function fetchActivity(
 ): Promise<ActivityVisualizationResponse> {
   const response = await fetch(`/api/v1/activity?period=${period}`);
   if (!response.ok) {
-    const body = (await response.json()) as ApiErrorResponse;
-    throw new Error(body.message ?? "Failed to load activity data");
+    let message = "Failed to load activity data";
+    try {
+      const body = (await response.json()) as ApiErrorResponse;
+      message = body.message ?? message;
+    } catch {
+      // Ignore non-JSON error bodies.
+    }
+    throw new Error(message);
   }
   return response.json() as Promise<ActivityVisualizationResponse>;
 }
@@ -158,11 +164,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Defer state updates so hydration does not cascade synchronously in the effect body.
     queueMicrotask(() => {
       if (parsed.period) setPeriodState(parsed.period);
+      const parsedComparePeriod = compareParam
+        ? parseDashboardUrlSearch(
+            `?period=${encodeURIComponent(compareParam)}`,
+          ).period
+        : undefined;
       setComparePeriodState(
-        compareParam
-          ? parseDashboardUrlSearch(
-              `?period=${encodeURIComponent(compareParam)}`,
-            ).period ?? null
+        parsedComparePeriod &&
+          parsedComparePeriod === compareParam &&
+          parsedComparePeriod !== parsed.period
+          ? parsedComparePeriod
           : null,
       );
       if (parsed.metric) setMetricState(parsed.metric);
