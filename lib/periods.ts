@@ -22,16 +22,7 @@ function startOfDayUTC(date: Date): Date {
 
 function endOfDayUTC(date: Date): Date {
   return new Date(
-    Date.UTC*
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      23,
-      59,
-      59,
-      999,
-    ),
-  );
+    Date.UTC(\n      date.getUTCFullYear(),\n      date.getUTCMonth(),\n      date.getUTCDate(),\n      23,\n      59,\n      59,\n      999,\n    ),\n  );
 }
 
 function subDaysUTC(date: Date, days: number): Date {
@@ -44,8 +35,7 @@ function startOfMonthUTC(date: Date): Date {
 
 function endOfMonthUTC(date: Date): Date {
   return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 999),
-  );
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 999),\n  );
 }
 
 export function resolvePeriod(period: Period, now = new Date()): PeriodRange {
@@ -89,7 +79,7 @@ export function isValidPeriod(value: string | null): value is Period {
   return value === "1d" || value === "7d" || value === "30d" || value === "month";
 }
 
-// --- Compare mode additions ---
+// --- Compare mode additions ----
 
 export interface CompareState {
   /** The baseline period, used as the reference point. */
