@@ -572,7 +572,7 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-function computeKpiDeltas(
+export function computeKpiDeltas(
   baselineKpis: ReturnType<typeof buildKpis>,
   comparisonKpis: ReturnType<typeof buildKpis>,
 ): KpiDeltas {
@@ -582,7 +582,12 @@ function computeKpiDeltas(
   for (const key of keys) {
     const baselineValue = baselineKpis[key];
     const comparisonValue = comparisonKpis[key] as unknown;
-    if (typeof baselineValue !== "number" || typeof comparisonValue !== "number") {
+    if (
+      typeof baselineValue !== "number" ||
+      typeof comparisonValue !== "number" ||
+      !Number.isFinite(baselineValue) ||
+      !Number.isFinite(comparisonValue)
+    ) {
       continue;
     }
 
