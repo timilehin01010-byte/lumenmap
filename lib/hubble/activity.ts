@@ -546,3 +546,122 @@ export async function getActivityData(
   });
 
 }
+
+export type KpiDelta = {
+  baseline: number;
+  comparison: number;
+  absoluteDelta: number;
+  percentDelta: number | null;
+};
+
+export type KpiDeltas = Record<string, KpiDelta>;
+
+export type ActivityComparisonStatus = "ok" | "partial" | "error";
+
+export interface ActivityComparisonData {
+  status: ActivityComparisonStatus;
+  baselinePeriod: Period;
+  comparisonPeriod: Period;
+  baseline: ActivityDataset | null;
+  comparison: ActivityDataset | null;
+  kpiDeltas: KpiDeltas | null;
+  error: string | null;
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function computeKpiDeltas(
+  baselineKpis: ReturnType<typeof buildKpis>,
+  comparisonKpis: ReturnType<typeof buildKpis>,
+): KpiDeltas {
+  const deltas: KpiDeltas = {};
+  const keys = Object.keys(baselineKpis) as (keyof ReturnType<typeof buildKpis>)[];
+
+  for (const key of keys) {
+    const baselineValue = baselineKpis[key];
+    const comparisonValue = comparisonKpis[key] as unknown;
+    if (typeof baselineValue !== "number" || typeof comparisonValue !== "number") {
+      continue;
+    }
+
+    const absoluteDelta = comparisonValue - baselineValue;
+    const percentDelta =
+      baselineValue === 0 ? null : (absoluteDelta / baselineValue) * 100;
+
+    deltas[key as string] = {
+      baseline: baselineValue,
+      comparison: comparisonValue,
+      absoluteDelta,
+      percentDelta,
+    };
+  }
+
+  return deltas;
+}
+
+export async function getActivityComparisonData(
+  baselinePeriod: Period,
+  comparisonPeriod: Period,
+  correlationId: string = createCorrelationId(),
+): Promise<ActivityComparisonData> {
+  const [baselineResult, comparisonResult] = await Promise.allSettled([
+    getActivityData(baselinePeriod, correlationId),
+    getActivityData(comparisonPeriod, correlationId),
+  ]);
+
+  if (baselineResult.status === "rejected") {
+    const baselineError = getErrorMessage(baselineResult.reason);
+    logError({
+      event: "activity.compare.error",
+      correlationId,
+      errorClass: classifyError(baselineResult.reason),
+      errorMessage: baselineError,
+    });
+
+    return {
+      status: comparisonResult.status === "fulfilled" ? "partial" : "error",
+      baselinePeriod,
+      comparisonPeriod,
+      baseline: null,
+      comparison: comparisonResult.status === "fulfilled" ? comparisonResult.value : null,
+      kpiDeltas: null,
+      error: baselineError,
+    };
+  }
+
+  const baseline = baselineResult.value;
+
+  if (comparisonResult.status === "rejected") {
+    const comparisonError = getErrorMessage(comparisonResult.reason);
+    logError({
+      event: "activity.compare.error",
+      correlationId,
+      errorClass: classifyError(comparisonResult.reason),
+      errorMessage: comparisonError,
+    });
+
+    return {
+      status: "partial",
+      baselinePeriod,
+      comparisonPeriod,
+      baseline,
+      comparison: null,
+      kpiDeltas: null,
+      error: comparisonError,
+    };
+  }
+
+  const comparison = comparisonResult.value;
+
+  return {
+    status: "ok",
+    baselinePeriod,
+    comparisonPeriod,
+    baseline,
+    comparison,
+    kpiDeltas: computeKpiDeltas(baseline.kpis, comparison.kpis),
+    error: null,
+  };
+}
