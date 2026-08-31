@@ -73,7 +73,7 @@ function PeriodPanel({ title, query }: { title: string; query: { data: any; erro
       ) : error ? (
         <p className="mt-2 text-sm text-red-400">Failed to load data for this period.</p>
       ) : data ? (
-        <div className="mt-2 space-y4">
+        <div className="mt-2 space-y-4">
           <div>
             <p className="text-sm text-zinc-400">Total Operations</p>
             <p className="text-2xl font-semibold text-white">{data.totalOperations?.toLocaleString()}</p>
@@ -85,7 +85,7 @@ function PeriodPanel({ title, query }: { title: string; query: { data: any; erro
           {data.categories && data.categories.length > 0 ? (
             <div>
               <p className="text-sm text-zinc-400">Category Share</p>
-              <ul className="mt-1 space-y1">
+              <ul className="mt-1 space-y-1">
                 {data.categories.map((cat: any) => (
                   <li key={cat.name} className="flex items-center justify-between text-sm">
                     <span className="text-zinc-300">{cat.name}</span>
@@ -107,14 +107,7 @@ function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; 
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("compare", "true");
-    params.set("baseline", base);
-    params.set("comparison", comp);
-    params.delete("period");
-    router.replace(`?${params.toString()}`);
-  }, [base, comp, router, searchParams]);
+
 
   const baseQuery = usePeriodData(base);
   const compQuery = usePeriodData(comp);
@@ -139,7 +132,16 @@ function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; 
         <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-2">
           <select
             value={base}
-            onChange={(e) => setBase(e.target.value)}
+            onChange={(e) => {
+              const newBase = e.target.value;
+              setBase(newBase);
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("compare", "true");
+              params.set("baseline", newBase);
+              params.set("comparison", comp);
+              params.delete("period");
+              router.replace(`?${params.toString()}`);
+            }}
             className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white focus:border-stellar-light focus:outline-none"
           >
             {SUPPORTED_PERIODS.map((p) => (
@@ -149,7 +151,16 @@ function CompareDashboard({ baseline, comparison, onExit }: { baseline: string; 
           <span className="text-zinc-400">vs</span>
           <select
             value={comp}
-            onChange={(e) => setComp(e.target.value)}
+            onChange={(e) => {
+              const newComp = e.target.value;
+              setComp(newComp);
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("compare", "true");
+              params.set("baseline", base);
+              params.set("comparison", newComp);
+              params.delete("period");
+              router.replace(`?${params.toString()}`);
+            }}
             className="rounded-md border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-white focus:border-stellar-light focus:outline-none"
           >
             {SUPPORTED_PERIODS.map((p) => (
