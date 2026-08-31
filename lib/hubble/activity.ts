@@ -606,6 +606,17 @@ export function computeKpiDeltas(
   return deltas;
 }
 
+export function formatKpiDelta(
+  delta: KpiDelta,
+): { absolute: string; percent: string | null } {
+  const absolute = `${delta.absoluteDelta > 0 ? "+" : ""}${delta.absoluteDelta.toLocaleString()}`;
+  const percent =
+    delta.percentDelta == null
+      ? null
+      : `${delta.percentDelta > 0 ? "+" : ""}${delta.percentDelta.toFixed(2)}%`;
+  return { absolute, percent };
+}
+
 export async function getActivityComparisonData(
   baselinePeriod: Period,
   comparisonPeriod: Period,
