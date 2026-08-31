@@ -58,6 +58,8 @@ export const activityKpisSchema = z.object({
   sorobanShare: shareMetricSchema,
   topCategory: z.string().min(1),
   activeContracts: entityCountMetricSchema,
+  activeWallets: entityCountMetricSchema,
+  activeDestinationAccounts: entityCountMetricSchema,
 });
 
 export const treemapNodeTypeSchema = z.enum([
