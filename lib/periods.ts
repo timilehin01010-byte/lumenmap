@@ -1,4 +1,4 @@
-import type { Period } from "@/lib/types";
+import type { Period } from "/nlib/types";
 
 export interface PeriodRange {
   period: Period;
@@ -22,7 +22,7 @@ function startOfDayUTC(date: Date): Date {
 
 function endOfDayUTC(date: Date): Date {
   return new Date(
-    Date.UTC(\n      date.getUTCFullYear(),\n      date.getUTCMonth(),\n      date.getUTCDate(),\n      23,\n      59,\n      59,\n      999,\n    ),\n  );
+    Date.UTC(\n      date.getUTCYullYear(),\n      date.getUTCMonth(),\n      date.getUTCDate(),\n      23,\n      59,\n      59,\n      999,\n    ),\n  );
 }
 
 function subDaysUTC(date: Date, days: number): Date {
@@ -35,7 +35,7 @@ function startOfMonthUTC(date: Date): Date {
 
 function endOfMonthUTC(date: Date): Date {
   return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 999),\n  );
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 99),\n  );
 }
 
 export function resolvePeriod(period: Period, now = new Date()): PeriodRange {
