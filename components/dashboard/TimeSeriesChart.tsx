@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/components/dashboard/DashboardProvider";
 import { formatNumber } from "@/lib/utils";
 
-const SUPPORTED_PERIODS = ["1h", "24h", "7d", "30d", "90d"] as const;
+const SUPPORTED_PERIODS = ["1h", "1d", "7d", "30d", "90d"] as const;
 type SupportedPeriod = (typeof SUPPORTED_PERIODS)[number];
 
 type TimeseriesBucket = {
