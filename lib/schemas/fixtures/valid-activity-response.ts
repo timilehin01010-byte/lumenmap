@@ -14,6 +14,8 @@ export const validActivityResponseFixture: ActivityResponse = {
     sorobanShare: { kind: "share", unit: "percent", value: 40 },
     topCategory: "Payments",
     activeContracts: { kind: "entity_count", unit: "count", value: 1 },
+    activeWallets: { kind: "entity_count", unit: "count", value: 10 },
+    activeDestinationAccounts: { kind: "entity_count", unit: "count", value: 8 },
   },
   treemaps: {
     events: {

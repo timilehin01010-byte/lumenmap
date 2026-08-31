@@ -402,11 +402,30 @@ Returns UTC-bucketed category totals for the stacked area chart (`hour` for `1d`
 
 ---
 
+### `GET /api/v1/timeseries`
+
+| Param | Values | Default |
+| --- | --- | --- |
+| `period` | `1d`, `7d`, `30d`, `month` | `1d` |
+| `granularity` | `hour`, `day` | `hour` for `1d`, otherwise `day` |
+
+Returns UTC-bucketed operation and transaction counts with partial-bucket flags,
+series totals, and the same metric provenance block used by `/api/v1/activity`.
+Without GCP credentials the endpoint serves deterministic fixture buckets marked
+`source: "fixture"`.
+
+Example:
+
+```bash
+curl "http://localhost:3000/api/v1/timeseries?period=7d"
+```
+
+---
+
 ### Planned endpoints
 
 | Endpoint | Description |
 | --- | --- |
-| `GET /api/v1/timeseries` | Operations and active wallets over time |
 | `GET /api/v1/dapps` | Top contracts by protocol |
 
 ---
