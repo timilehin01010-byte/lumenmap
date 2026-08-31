@@ -665,3 +665,34 @@ export async function getActivityComparisonData(
     error: null,
   };
 }
+
+export function parseComparisonQuery(
+  searchParams: URLSearchParams,
+): { baselinePeriod: Period; comparisonPeriod: Period } | null {
+  const baseline = searchParams.get("baseline");
+  const comparison = searchParams.get("comparison");
+  if (!baseline || !comparison) {
+    return null;
+  }
+
+  try {
+    const baselinePeriod = baseline as Period;
+    const comparisonPeriod = comparison as Period;
+    resolvePeriod(baselinePeriod);
+    resolvePeriod(comparisonPeriod);
+    return { baselinePeriod, comparisonPeriod };
+  } catch {
+    return null;
+  }
+}
+
+export function serializeComparisonQuery(
+  baselinePeriod: Period,
+  comparisonPeriod: Period,
+): string {
+  const params = new URLSearchParams({
+    baseline: baselinePeriod,
+    comparison: comparisonPeriod,
+  });
+  return params.toString();
+}
