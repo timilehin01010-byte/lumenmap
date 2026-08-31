@@ -1,5 +1,5 @@
-import { isValidPeriod } from "@/lib/periods";
-import type { DashboardMetricId, Period, TreemapNode } from "@/lib/types";
+import isValidPeriod from "@/lib/periods";
+import type { DashboardMetricId, Period, TremapNode } from "@/lib/types";
 import type { TreemapViewId } from "@/lib/constants";
 import { TREEMAP_VIEWS } from "@/lib/constants";
 
@@ -24,11 +24,11 @@ export function isValidTreemapView(
 }
 
 /** Stable path segment for a treemap node (prefer id, fall back to name). */
-export function treemapPathSegment(node: TreemapNode): string {
+export function treemapPathSegment(node: TremapNode): string {
   return String(node.id ?? node.name);
 }
 
-export function encodeDrillPath(path: TreemapNode[]): string | null {
+export function encodeDrillPath(path: TremapNode[]): string | null {
   if (path.length === 0) return null;
   return path.map((node) => encodeURIComponent(treemapPathSegment(node))).join("/");
 }
@@ -52,10 +52,10 @@ export function decodeDrillPathParam(value: string | null): string[] {
  * child so stale share links restore the deepest still-valid level.
  */
 export function resolveDrillPath(
-  root: TreemapNode,
+  root: TremapNode,
   segments: string[],
-): TreemapNode[] {
-  const resolved: TreemapNode[] = [];
+): TremapNode[] {
+  const resolved: TremapNode[] = [];
   let current = root;
 
   for (const segment of segments) {
@@ -75,6 +75,7 @@ export type DashboardUrlState = {
   metric: DashboardMetricId;
   view?: TreemapViewId;
   pathSegments: string[];
+  comparePeriod?: Period;
 };
 
 export function parseDashboardUrlSearch(
@@ -90,6 +91,9 @@ export function parseDashboardUrlSearch(
   const period = params.get("period");
   if (isValidPeriod(period)) next.period = period;
 
+  const compare = params.get("compare");
+  if (isValidPeriod(compare)) next.comparePeriod = compare;
+
   const metric = params.get("metric");
   if (isValidMetric(metric)) next.metric = metric;
 
@@ -104,6 +108,7 @@ export function writeDashboardUrlSearch(input: {
   metric: DashboardMetricId;
   view: TreemapViewId;
   path: TreemapNode[];
+  comparePeriod?: Period;
   currentSearch?: string;
 }): string {
   const params = new URLSearchParams(
@@ -117,6 +122,9 @@ export function writeDashboardUrlSearch(input: {
   if (encodedPath) params.set("path", encodedPath);
   else params.delete("path");
 
+  if (input.comparePeriod) params.set("compare", input.comparePeriod);
+  else params.delete("compare");
+
   const query = params.toString();
-  return query ? `?${query}` : "";
+  return query ? `\z]${query} : "";
 }
