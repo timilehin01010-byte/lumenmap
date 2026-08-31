@@ -115,6 +115,42 @@ export function TimeSeriesChart() {
     });
   }, [buckets, chartWidth, chartHeight, maxVal, padding.left, padding.top]);
 
+  // Comparison points computation
+  const comparisonPoints = useMemo(() => {
+    if (comparisonBuckets.length === 0) return [];
+    const step = comparisonBuckets.length > 1 ? chartWidth / (comparisonBuckets.length - 1) : chartWidth;
+
+    return comparisonBuckets.map((b, i) => {
+      const x = padding.left + (comparisonBuckets.length === 1 ? chartWidth / 2 : i * step);
+      const yOps = padding.top + chartHeight - (b.operations / maxVal) * chartHeight;
+      const yTx = padding.top + chartHeight - (b.transactions / maxVal) * chartHeight;
+
+      return {
+        x,
+        yOps,
+        yTx,
+        bucket: b,
+        index: i,
+      };
+    });
+  }, [comparisonBuckets, chartWidth, chartHeight, maxVal, padding.left, padding.top]);
+
+  const comparisonOpsPath = useMemo(() => {
+    if (comparisonPoints.length === 0) return "";
+    return comparisonPoints.reduce(
+      (acc, p, i) => (i === 0 ? `M ${p.x} ${p.yOps}` : `${acc} L ${p.x} ${p.yOps}`),
+      "",
+    );
+  }, [comparisonPoints]);
+
+  const comparisonTxPath = useMemo(() => {
+    if (comparisonPoints.length === 0) return "";
+    return comparisonPoints.reduce(
+      (acc, p, i) => (i === 0 ? `M ${p.x} ${p.yTx}` : `${acc} L ${p.x} ${p.yTx}`),
+      "",
+    );
+  }, [comparisonPoints]);
+
   // SVG Paths
   const opsPath = useMemo(() => {
     if (points.length === 0) return "";
@@ -312,6 +348,146 @@ export function TimeSeriesChart() {
                       {formatSignedNumber(compareSummary.operationsDelta)}
                     </span>{" "}
                     <span className="text-zinc-500">({compareSummary.operationsPercent})</span>
+                  </span>
+                  <span className="text-zinc-400">
+                    Tx{" "}
+                    <span className="text-cyan-300">
+                      {formatSignedNumber(compareSummary.transactionsDelta)}
+                    </span>{" "}
+                    <span className="text-zinc-500">
+                      ({compareSummary.transactionsPercent})
+                    </span>
+                  </span>
+                </div>
+              ) : null}
+            </>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="pt-4">
+        {comparisonError && compareEnabled && (
+          <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-400">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Comparison period failed to load: {comparisonError}
+          </div>
+        )}
+        {hasData ? (
+          <div className="relative">
+            <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
+              <defs>
+                <linearGradient id="opsArea" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgb(34 211 238)" stopOpacity="0.2" />
+                  <stop offset="100%" stopColor="rgb(34 211 238)" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              {yTicks.map((tick) => (
+                <g key={tick.y}>
+                  <line
+                    x1={padding.left}
+                    x2={width - padding.right}
+                    y1={tick.y}
+                    y2={tick.y}
+                    stroke="rgb(63 63 70)"
+                    strokeDasharray="4 4"
+                    strokeWidth="1"
+                  />
+                  <text
+                    x={padding.left - 8}
+                    y={tick.y + 4}
+                    textAnchor="end"
+                    className="fill-zinc-500 text-[10px]"
+                  >
+                    {tick.val}
+                  </text>
+                </g>
+              ))}
+              {xLabels.map((p) => (
+                <text
+                  key={`${p.index}-${p.x}`}
+                  x={p.x}
+                  y={height - padding.bottom + 16}
+                  textAnchor="middle"
+                  className="fill-zinc-500 text-[10px]"
+                >
+                  {p.bucket.label}
+                </text>
+              ))}
+              {opsAreaPath && <path d={opsAreaPath} fill="url(#opsArea)" />}
+              {opsPath && (
+                <path
+                  d={opsPath}
+                  fill="none"
+                  stroke="rgb(34 211 238)"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+              {txPath && (
+                <path
+                  d={txPath}
+                  fill="none"
+                  stroke="rgb(167 139 250)"
+                  strokeWidth="2"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+              {comparisonOpsPath && (
+                <path
+                  d={comparisonOpsPath}
+                  fill="none"
+                  stroke="rgb(251 146 60)"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+              {comparisonTxPath && (
+                <path
+                  d={comparisonTxPath}
+                  fill="none"
+                  stroke="rgb(244 114 182)"
+                  strokeWidth="2"
+                  strokeDasharray="4 4"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+              )}
+              {points.map((point) => {
+                const isActive = hoverIndex === point.index;
+                return (
+                  <g
+                    key={point.index}
+                    transform={`translate(${point.x}, ${point.yOps})`}
+                    onMouseEnter={() => setHoverIndex(point.index)}
+                    onMouseLeave={() => setHoverIndex(null)}
+                  >
+                    <circle r={isActive ? 6 : 3} fill="rgb(34 211 238)" />
+                  </g>
+                );
+              })}
+            </svg>
+            {activeBucket && (
+              <div className="pointer-events-none absolute top-2 right-2 rounded-md border border-zinc-800 bg-zinc-950/90 px-3 py-2 text-xs">
+                <div className="font-semibold text-zinc-300">{activeBucket.label}</div>
+                <div className="mt-1 flex items-center gap-4 font-mono">
+                  <span className="text-cyan-400">{formatNumber(activeBucket.operations)} ops</span>
+                  <span className="text-violet-400">{formatNumber(activeBucket.transactions)} tx</span>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex h-[260px] items-center justify-center text-sm text-zinc-500">
+            No activity data available for the selected period
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}ary.operationsPercent})</span>
                   </span>
                   <span className="text-zinc-400">
                     Tx{" "}
