@@ -29,6 +29,8 @@ import type {
 interface DashboardContextValue {
   period: Period;
   setPeriod: (period: Period) => void;
+  comparePeriod: Period | null;
+  setComparePeriod: (period: Period | null) => void;
   treemapView: TreemapViewId;
   setTreemapView: (view: TreemapViewId) => void;
   metric: DashboardMetricId;
@@ -38,6 +40,12 @@ interface DashboardContextValue {
   isError: boolean;
   isFetching: boolean;
   error: Error | null;
+  comparisonData?: ActivityVisualizationResponse;
+  comparisonIsLoading: boolean;
+  comparisonIsError: boolean;
+  comparisonIsFetching: boolean;
+  comparisonError: Error | null;
+  refetchComparison: () => Promise<unknown>;
   refetch: () => Promise<unknown>;
   selectedNode: SelectedNode | null;
   setSelectedNode: (node: SelectedNode | null) => void;
@@ -129,6 +137,7 @@ function activeTreemapRoot(
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [period, setPeriodState] = useState<Period>("1d");
+  const [comparePeriod, setComparePeriodState] = useState<Period | null>(null);
   const [treemapView, setTreemapViewState] = useState<TreemapViewId>("events");
   const [metric, setMetricState] = useState<DashboardMetricId>("ops");
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
@@ -140,12 +149,16 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const parsed = parseDashboardUrlSearch(window.location.search);
+    const compareParam = new URLSearchParams(
+      window.location.search,
+    ).get("comparePeriod");
     if (parsed.pathSegments && parsed.pathSegments.length > 0) {
       pendingPathSegments.current = parsed.pathSegments;
     }
     // Defer state updates so hydration does not cascade synchronously in the effect body.
     queueMicrotask(() => {
       if (parsed.period) setPeriodState(parsed.period);
+      setComparePeriodState(compareParam as Period | null);
       if (parsed.metric) setMetricState(parsed.metric);
       if (parsed.view) setTreemapViewState(parsed.view);
       setUrlReady(true);
@@ -159,6 +172,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     pendingPathSegments.current = null;
     setPeriodState(newPeriod);
   }, []);
+
+  const handleSetComparePeriod = useCallback(
+    (newComparePeriod: Period | null) => {
+      setComparePeriodState(newComparePeriod);
+    },
+    [],
+  );
 
   const handleSetTreemapView = useCallback((newView: TreemapViewId) => {
     setSelectedNode(null);
@@ -182,6 +202,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     staleTime: 60_000,
   });
 
+  const compareQuery = useQuery({
+    queryKey: ["activity", "compare", comparePeriod],
+    queryFn: () => fetchActivity(comparePeriod as Period),
+    enabled: comparePeriod !== null,
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     const segments = pendingPathSegments.current;
     if (!segments || segments.length === 0 || !query.data) return;
@@ -201,14 +228,22 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       path: activeLevelPath,
       currentSearch: window.location.search,
     });
-    if (next !== window.location.search) {
+    const searchParams = new URLSearchParams(next);
+    if (comparePeriod) {
+      searchParams.set("comparePeriod", comparePeriod);
+    } else {
+      searchParams.delete("comparePeriod");
+    }
+    const nextSearch = searchParams.toString();
+    const nextUrl = nextSearch ? `?${nextSearch}` : "";
+    if (nextUrl !== window.location.search) {
       window.history.replaceState(
         window.history.state,
         "",
-        `${window.location.pathname}${next}`,
+        `${window.location.pathname}${nextUrl}`,
       );
     }
-  }, [urlReady, period, metric, treemapView, activeLevelPath]);
+  }, [urlReady, period, comparePeriod, metric, treemapView, activeLevelPath]);
 
   const selectSearchResult = useCallback(
     (result: SearchResult) => {
@@ -223,6 +258,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     () => ({
       period,
       setPeriod: handleSetPeriod,
+      comparePeriod,
+      setComparePeriod: handleSetComparePeriod,
       treemapView,
       setTreemapView: handleSetTreemapView,
       metric,
@@ -233,6 +270,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       isFetching: query.isFetching,
       error: query.error,
       refetch: query.refetch,
+      comparisonData: comparePeriod && !compareQuery.isError ? compareQuery.data : undefined,
+      comparisonIsLoading: comparePeriod ? compareQuery.isLoading : false,
+      comparisonIsError: comparePeriod ? compareQuery.isError : false,
+      comparisonIsFetching: comparePeriod ? compareQuery.isFetching : false,
+      comparisonError: comparePeriod ? compareQuery.error : null,
+      refetchComparison: compareQuery.refetch,
       selectedNode,
       setSelectedNode,
       activeLevelPath,
@@ -243,6 +286,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     [
       period,
       handleSetPeriod,
+      comparePeriod,
+      handleSetComparePeriod,
       treemapView,
       handleSetTreemapView,
       metric,
@@ -253,6 +298,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       query.isFetching,
       query.error,
       query.refetch,
+      compareQuery.data,
+      compareQuery.isLoading,
+      compareQuery.isError,
+      compareQuery.isFetching,
+      compareQuery.error,
+      compareQuery.refetch,
       selectedNode,
       activeLevelPath,
       focusRequest,
