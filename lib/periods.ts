@@ -86,5 +86,7 @@ export function resolvePeriod(period: Period, now = new Date()): PeriodRange {
 }
 
 export function isValidPeriod(value: string | null): value is Period {
-  return value === "1d" || value === "7d" || value === "30d" || value === "month";
+  return (
+    value === "1d" || value === "7d" || value === "30d" || value === "month"
+  );
 }

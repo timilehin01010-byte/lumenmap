@@ -350,6 +350,7 @@ export interface TimeseriesBucket {
   label: string;
   transactions: number;
   operations: number;
+  sorobanOperations?: number;
   isPartial?: boolean;
 }
 
@@ -384,6 +385,7 @@ export interface TimeseriesRawRow {
   bucket_time: string;
   tx_count: number;
   op_count: number;
+  soroban_op_count?: number;
 }
 
 export interface ActivityTreemaps {

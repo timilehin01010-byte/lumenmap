@@ -381,7 +381,10 @@ export function buildTimeseries(
   const granularity = granularityOverride ?? (period === "1d" ? "hour" : "day");
   const buckets: TimeseriesBucket[] = [];
 
-  const lookup = new Map<string, { tx_count: number; op_count: number }>();
+  const lookup = new Map<
+    string,
+    { tx_count: number; op_count: number; soroban_op_count: number }
+  >();
   for (const row of rawRows) {
     if (!row.bucket_time) continue;
     const dt = new Date(row.bucket_time);
@@ -391,10 +394,15 @@ export function buildTimeseries(
         ? dt.toISOString().substring(0, 13)
         : dt.toISOString().substring(0, 10);
 
-    const existing = lookup.get(key) ?? { tx_count: 0, op_count: 0 };
+    const existing = lookup.get(key) ?? {
+      tx_count: 0,
+      op_count: 0,
+      soroban_op_count: 0,
+    };
     lookup.set(key, {
       tx_count: existing.tx_count + row.tx_count,
       op_count: existing.op_count + row.op_count,
+      soroban_op_count: existing.soroban_op_count + (row.soroban_op_count ?? 0),
     });
   }
 
@@ -407,7 +415,11 @@ export function buildTimeseries(
     while (curr <= limit) {
       const iso = curr.toISOString();
       const hourKey = iso.substring(0, 13);
-      const data = lookup.get(hourKey) ?? { tx_count: 0, op_count: 0 };
+      const data = lookup.get(hourKey) ?? {
+        tx_count: 0,
+        op_count: 0,
+        soroban_op_count: 0,
+      };
 
       const isCurrentHour = hourKey === currentHourKey;
       const isPastNow = curr > now;
@@ -419,6 +431,7 @@ export function buildTimeseries(
           label: `${utcHour}:00 UTC`,
           transactions: data.tx_count,
           operations: data.op_count,
+          sorobanOperations: data.soroban_op_count,
           isPartial: isCurrentHour || (curr <= now && addHours(curr, 1) > now),
         });
       }
@@ -431,7 +444,11 @@ export function buildTimeseries(
     while (curr <= limit) {
       const iso = curr.toISOString();
       const dayKey = iso.substring(0, 10);
-      const data = lookup.get(dayKey) ?? { tx_count: 0, op_count: 0 };
+      const data = lookup.get(dayKey) ?? {
+        tx_count: 0,
+        op_count: 0,
+        soroban_op_count: 0,
+      };
 
       const isCurrentDay = dayKey === currentDayKey;
       const isPastNow = curr > startOfDay(now);
@@ -447,6 +464,7 @@ export function buildTimeseries(
           label: `${monthStr} ${dayNum}`,
           transactions: data.tx_count,
           operations: data.op_count,
+          sorobanOperations: data.soroban_op_count,
           isPartial: isCurrentDay || (curr <= now && addDays(curr, 1) > now),
         });
       }

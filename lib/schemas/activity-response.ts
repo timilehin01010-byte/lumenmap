@@ -299,6 +299,7 @@ const timeseriesBucketSchema = z.object({
   label: z.string(),
   transactions: z.number(),
   operations: z.number(),
+  sorobanOperations: z.number().nonnegative().optional(),
   isPartial: z.boolean().optional(),
 });
 
