@@ -42,7 +42,9 @@ describe("dashboard URL state", () => {
   });
 
   it("parses period and metric from search params", () => {
-    const parsed = parseDashboardUrlSearch("?period=7d&metric=xlm_volume&view=actors");
+    const parsed = parseDashboardUrlSearch(
+      "?period=7d&metric=xlm_volume&view=actors",
+    );
     assert.equal(parsed.period, "7d");
     assert.equal(parsed.metric, "xlm_volume");
     assert.equal(parsed.view, "actors");
@@ -55,7 +57,10 @@ describe("dashboard URL state", () => {
   });
 
   it("encodes and restores drill path segments", () => {
-    const path = resolveDrillPath(sampleRoot, ["soroban", "invoke_host_function"]);
+    const path = resolveDrillPath(sampleRoot, [
+      "soroban",
+      "invoke_host_function",
+    ]);
     assert.equal(path.length, 2);
     assert.equal(path[1].name, "invoke_host_function");
 
@@ -87,5 +92,16 @@ describe("dashboard URL state", () => {
     assert.match(search, /view=events/);
     assert.match(search, /path=Payments/);
     assert.match(search, /utm=keep/);
+  });
+
+  it("round-trips comparison period state", () => {
+    const search = writeDashboardUrlSearch({
+      period: "1d",
+      comparePeriod: "7d",
+      metric: "ops",
+      view: "events",
+      path: [],
+    });
+    assert.equal(parseDashboardUrlSearch(search).comparePeriod, "7d");
   });
 });

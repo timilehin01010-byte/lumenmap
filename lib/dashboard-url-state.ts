@@ -30,7 +30,9 @@ export function treemapPathSegment(node: TreemapNode): string {
 
 export function encodeDrillPath(path: TreemapNode[]): string | null {
   if (path.length === 0) return null;
-  return path.map((node) => encodeURIComponent(treemapPathSegment(node))).join("/");
+  return path
+    .map((node) => encodeURIComponent(treemapPathSegment(node)))
+    .join("/");
 }
 
 export function decodeDrillPathParam(value: string | null): string[] {
@@ -75,6 +77,7 @@ export type DashboardUrlState = {
   metric: DashboardMetricId;
   view?: TreemapViewId;
   pathSegments: string[];
+  comparePeriod?: Period;
 };
 
 export function parseDashboardUrlSearch(
@@ -89,6 +92,9 @@ export function parseDashboardUrlSearch(
 
   const period = params.get("period");
   if (isValidPeriod(period)) next.period = period;
+
+  const compare = params.get("compare");
+  if (isValidPeriod(compare)) next.comparePeriod = compare;
 
   const metric = params.get("metric");
   if (isValidMetric(metric)) next.metric = metric;
@@ -105,6 +111,7 @@ export function writeDashboardUrlSearch(input: {
   view: TreemapViewId;
   path: TreemapNode[];
   currentSearch?: string;
+  comparePeriod?: Period | null;
 }): string {
   const params = new URLSearchParams(
     (input.currentSearch ?? "").replace(/^\?/, ""),
@@ -112,6 +119,8 @@ export function writeDashboardUrlSearch(input: {
   params.set("period", input.period);
   params.set("metric", input.metric);
   params.set("view", input.view);
+  if (input.comparePeriod) params.set("compare", input.comparePeriod);
+  else params.delete("compare");
 
   const encodedPath = encodeDrillPath(input.path);
   if (encodedPath) params.set("path", encodedPath);

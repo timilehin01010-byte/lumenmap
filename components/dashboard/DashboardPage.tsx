@@ -19,6 +19,7 @@ import { HourOfWeekHeatmap } from "@/components/dashboard/HourOfWeekHeatmap";
 import { AssetVolumePanel } from "@/components/dashboard/AssetVolumePanel";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { DashboardSearch } from "@/components/dashboard/DashboardSearch";
+import { ComparisonPanel } from "@/components/dashboard/ComparisonPanel";
 
 function DashboardContent() {
   const { selectedNode } = useDashboard();
@@ -67,6 +68,8 @@ function DashboardContent() {
       <DashboardSearch />
 
       <KpiCards />
+
+      <ComparisonPanel />
 
       <AssetVolumePanel />
 

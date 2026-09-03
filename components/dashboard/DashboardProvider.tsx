@@ -29,6 +29,11 @@ import type {
 interface DashboardContextValue {
   period: Period;
   setPeriod: (period: Period) => void;
+  comparePeriod: Period | null;
+  setComparePeriod: (period: Period | null) => void;
+  comparisonData?: ActivityVisualizationResponse;
+  comparisonLoading: boolean;
+  comparisonError: Error | null;
   treemapView: TreemapViewId;
   setTreemapView: (view: TreemapViewId) => void;
   metric: DashboardMetricId;
@@ -81,8 +86,7 @@ function selectedNodeFromSearch(
   result: SearchResult,
 ): SelectedNode {
   const root = data?.treemaps[result.treemapView] as
-    | TreemapNode<number | string>
-    | undefined;
+    TreemapNode<number | string> | undefined;
   if (root) {
     const path = findTreemapPath(root, result);
     if (path && path.length > 0) {
@@ -129,6 +133,7 @@ function activeTreemapRoot(
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [period, setPeriodState] = useState<Period>("1d");
+  const [comparePeriod, setComparePeriod] = useState<Period | null>(null);
   const [treemapView, setTreemapViewState] = useState<TreemapViewId>("events");
   const [metric, setMetricState] = useState<DashboardMetricId>("ops");
   const [selectedNode, setSelectedNode] = useState<SelectedNode | null>(null);
@@ -146,6 +151,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     // Defer state updates so hydration does not cascade synchronously in the effect body.
     queueMicrotask(() => {
       if (parsed.period) setPeriodState(parsed.period);
+      if (parsed.comparePeriod) setComparePeriod(parsed.comparePeriod);
       if (parsed.metric) setMetricState(parsed.metric);
       if (parsed.view) setTreemapViewState(parsed.view);
       setUrlReady(true);
@@ -182,6 +188,13 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     staleTime: 60_000,
   });
 
+  const comparisonQuery = useQuery({
+    queryKey: ["activity", comparePeriod],
+    queryFn: () => fetchActivity(comparePeriod as Period),
+    enabled: comparePeriod !== null,
+    staleTime: 60_000,
+  });
+
   useEffect(() => {
     const segments = pendingPathSegments.current;
     if (!segments || segments.length === 0 || !query.data) return;
@@ -200,6 +213,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       view: treemapView,
       path: activeLevelPath,
       currentSearch: window.location.search,
+      comparePeriod,
     });
     if (next !== window.location.search) {
       window.history.replaceState(
@@ -208,7 +222,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         `${window.location.pathname}${next}`,
       );
     }
-  }, [urlReady, period, metric, treemapView, activeLevelPath]);
+  }, [urlReady, period, metric, treemapView, activeLevelPath, comparePeriod]);
 
   const selectSearchResult = useCallback(
     (result: SearchResult) => {
@@ -223,6 +237,12 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     () => ({
       period,
       setPeriod: handleSetPeriod,
+      comparePeriod,
+      setComparePeriod,
+      comparisonData: comparisonQuery.data,
+      comparisonLoading:
+        comparisonQuery.isLoading || comparisonQuery.isFetching,
+      comparisonError: comparisonQuery.error,
       treemapView,
       setTreemapView: handleSetTreemapView,
       metric,
@@ -242,6 +262,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       period,
+      comparePeriod,
+      comparisonQuery.data,
+      comparisonQuery.isLoading,
+      comparisonQuery.isFetching,
+      comparisonQuery.error,
       handleSetPeriod,
       treemapView,
       handleSetTreemapView,
