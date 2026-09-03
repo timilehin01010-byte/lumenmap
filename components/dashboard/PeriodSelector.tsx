@@ -1,94 +1,58 @@
 "use client";
 
-import { useEffect } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { PERIOD_OPTIONS } from '@/lib/periods';
-import type { Period } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { useDashboard } from '@/components/dashboard/DashboardProvider';
+import { useCallback, useRef } from "react";
+import { PERIOD_OPTIONS } from "@/lib/periods";
+import { Button } from "@/components/ui/button";
+import { useDashboard } from "@/components/dashboard/DashboardProvider";
 
 export function PeriodSelector() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const {
-    period,
-    setPeriod,
-    compareMode,
-    setCompareMode,
-    comparePeriod,
-    setComparePeriod,
-  } = useDashboard();
+  const { period, setPeriod } = useDashboard();
+  const groupRef = useRef<HTMLDivElement>(null);
 
-  // Restore state from URL query params on mount.
-  useEffect(() => {
-    const urlPeriod = searchParams.get("period") as Period | null;
-    const urlCompareMode = searchParams.get("compare") === "true";
-    const urlComparePeriod = searchParams.get("comparePeriod") as Period | null;
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const options = PERIOD_OPTIONS;
+      const currentIndex = options.findIndex((o) => o.value === period);
+      let nextIndex: number | null = null;
 
-    if (urlPeriod && PERIOD_OPTIONS.some((o) => o.value === urlPeriod)) {
-      setPeriod(urlPeriod);
-    }
-    if (urlCompareMode) {
-      setCompareMode(true);
-    }
-    if (urlComparePeriod && PERIOD_OPTIONS.some((o) => o.value === urlComparePeriod)) {
-      setComparePeriod(urlComparePeriod);
-    }
-    // Only run once on component mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+        nextIndex = (currentIndex + 1) % options.length;
+      } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+        nextIndex = (currentIndex - 1 + options.length) % options.length;
+      }
 
-  // Keep URL in sync with the selected periods/compare mode.
-  useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("period", period);
-    if (compareMode) {
-      params.set("compare", "true");
-      params.set("comparePeriod", comparePeriod ?? period);
-    } else {
-      params.delete("compare");
-      params.delete("comparePeriod");
-    }
-    const nextQuery = params.toString();
-    const currentQuery = searchParams.toString();
-    if (nextQuery !== currentQuery) {
-      router.replace("|?nextQuery", { scroll: false });
-    }
-  }, [period, compareMode, comparePeriod, router, searchParams]);
-
-  const render = (value: Period, setter: (value: Period) => void) => (
-    <div className="flex flex-wrap gap-2">
-      {PERIOD_OPTIONS.map((o) => (
-        <Button
-          key={o.value}
-          variant={value === o.value ? "default" : "outline"}
-          onClick={() => setter(o.value)}
-        >
-          {o.label}
-        </Button>
-      ))
-    }</div>
+      if (nextIndex !== null) {
+        e.preventDefault();
+        const nextValue = options[nextIndex].value;
+        setPeriod(nextValue);
+        const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>("[role=radio]");
+        buttons?.[nextIndex]?.focus();
+      }
+    },
+    [period, setPeriod],
   );
 
   return (
-    <div>
-      <Button onClick={() => setCompareMode(!compareMode)}>
-        {compareMode ? "Single" : "Compare"}
-      </Button>
-      {compareMode ? (
-        <div className="flex flex-row gap-4 items-start">
-          <div>
-            <span>Baseline</span>
-            {render(period, setPeriod)}
-          </div>
-          <div>
-            <span>Comparison</span>
-            {render(comparePeriod ?? period, setComparePeriod)}
-          </div>
-        </div>
-      ) : (
-        render(period, setPeriod)
-      )}
+    <div
+      ref={groupRef}
+      role="radiogroup"
+      aria-label="Time period"
+      className="flex flex-wrap gap-2"
+      onKeyDown={handleKeyDown}
+    >
+      {PERIOD_OPTIONS.map((option) => (
+        <Button
+          key={option.value}
+          role="radio"
+          aria-checked={period === option.value}
+          variant={period === option.value ? "default" : "outline"}
+          size="sm"
+          tabIndex={period === option.value ? 0 : -1}
+          onClick={() => setPeriod(option.value)}
+        >
+          {option.label}
+        </Button>
+      ))}
     </div>
   );
 }

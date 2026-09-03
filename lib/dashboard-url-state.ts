@@ -1,14 +1,9 @@
-import {
-  isValidPeriod,
-  parseCompareState,
-  serializeCompareState,
-} from "@/lib/periods";
-import type { CompareState } from "@/lib/periods";
+import { isValidPeriod } from "@/lib/periods";
 import type { DashboardMetricId, Period, TreemapNode } from "@/lib/types";
 import type { TreemapViewId } from "@/lib/constants";
 import { TREEMAP_VIEWS } from "@/lib/constants";
 
-const METRIC_IDS: DashboardMetricID[] = [
+const METRIC_IDS: DashboardMetricId[] = [
   "ops",
   "xlm_volume",
   "usdc",
@@ -80,7 +75,6 @@ export type DashboardUrlState = {
   metric: DashboardMetricId;
   view?: TreemapViewId;
   pathSegments: string[];
-  comparePeriod?: Period;
 };
 
 export function parseDashboardUrlSearch(
@@ -96,17 +90,6 @@ export function parseDashboardUrlSearch(
   const period = params.get("period");
   if (isValidPeriod(period)) next.period = period;
 
-  const compare = params.get("compare");
-  if (compare) {
-    const compareState = parseCompareState(compare);
-    if (compareState && isValidPeriod(compareState.baseline) && isValidPeriod(compareState.comparison)) {
-      next.period = compareState.baseline;
-      next.comparePeriod = compareState.comparison;
-    } else if (isValidPeriod(compare)) {
-      next.comparePeriod = compare;
-    }
-  }
-
   const metric = params.get("metric");
   if (isValidMetric(metric)) next.metric = metric;
 
@@ -121,7 +104,6 @@ export function writeDashboardUrlSearch(input: {
   metric: DashboardMetricId;
   view: TreemapViewId;
   path: TreemapNode[];
-  comparePeriod?: Period;
   currentSearch?: string;
 }): string {
   const params = new URLSearchParams(
@@ -135,16 +117,6 @@ export function writeDashboardUrlSearch(input: {
   if (encodedPath) params.set("path", encodedPath);
   else params.delete("path");
 
-  if (input.comparePeriod) {
-    const compareState: CompareState = {
-      baseline: input.period,
-      comparison: input.comparePeriod,
-    };
-    params.set("compare", serializeCompareState(compareState));
-  } else {
-    params.delete("compare");
-  }
-
   const query = params.toString();
-  return query ? `?{query}` : "";
+  return query ? `?${query}` : "";
 }

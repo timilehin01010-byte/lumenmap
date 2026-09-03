@@ -294,12 +294,12 @@ export const activityMetricProvenanceSchema = z.object({
   asset_volume: assetVolumeMetricProvenanceSchema,
 });
 
-
 const timeseriesBucketSchema = z.object({
   timestamp: z.string(),
   label: z.string(),
   transactions: z.number(),
   operations: z.number(),
+  sorobanOperations: z.number().nonnegative().optional(),
   isPartial: z.boolean().optional(),
 });
 
@@ -310,6 +310,32 @@ const activityTimeseriesSchema = z.object({
     transactions: z.number(),
     operations: z.number(),
   }),
+});
+
+const heatmapBucketSchema = z.object({
+  dayOfWeek: z.number().int().min(0).max(6),
+  hourOfDay: z.number().int().min(0).max(23),
+  transactions: z.number().nonnegative(),
+  operations: z.number().nonnegative(),
+});
+
+const activityHeatmapSchema = z.object({
+  buckets: z.array(heatmapBucketSchema),
+});
+
+const assetPaymentVolumeSchema = z.object({
+  asset: z.discriminatedUnion("type", [
+    z.object({ type: z.literal("native"), code: z.literal("XLM") }),
+    z.object({
+      type: z.literal("issued"),
+      code: z.string().min(1),
+      issuer: z.string().min(1),
+    }),
+  ]),
+  amount: z
+    .string()
+    .refine((value) => Number.isFinite(Number(value)) && Number(value) >= 0),
+  opCount: z.number().int().nonnegative(),
 });
 
 const protocolBarSchema = z.object({
@@ -350,6 +376,8 @@ export const activityResponseSchema = z.object({
   metricProvenance: activityMetricProvenanceSchema,
   protocols: protocolSummarySchema.optional(),
   timeseries: activityTimeseriesSchema.optional(),
+  heatmap: activityHeatmapSchema.optional(),
+  assetVolumes: z.array(assetPaymentVolumeSchema).optional(),
   fixture: z.boolean().optional(),
 });
 

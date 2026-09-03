@@ -1,4 +1,4 @@
-import type { Period } from "/nlib/types";
+import type { Period } from "@/lib/types";
 
 export interface PeriodRange {
   period: Period;
@@ -12,7 +12,7 @@ export const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: "7d", label: "7 Days" },
   { value: "30d", label: "30 Days" },
   { value: "month", label: "This Month" },
-]
+];
 
 function startOfDayUTC(date: Date): Date {
   return new Date(
@@ -22,7 +22,16 @@ function startOfDayUTC(date: Date): Date {
 
 function endOfDayUTC(date: Date): Date {
   return new Date(
-    Date.UTC(\n      date.getUTCYullYear(),\n      date.getUTCMonth(),\n      date.getUTCDate(),\n      23,\n      59,\n      59,\n      999,\n    ),\n  );
+    Date.UTC(
+      date.getUTCFullYear(),
+      date.getUTCMonth(),
+      date.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
 }
 
 function subDaysUTC(date: Date, days: number): Date {
@@ -35,7 +44,8 @@ function startOfMonthUTC(date: Date): Date {
 
 function endOfMonthUTC(date: Date): Date {
   return new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 99),\n  );
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0, 23, 59, 59, 999),
+  );
 }
 
 export function resolvePeriod(period: Period, now = new Date()): PeriodRange {
@@ -76,57 +86,7 @@ export function resolvePeriod(period: Period, now = new Date()): PeriodRange {
 }
 
 export function isValidPeriod(value: string | null): value is Period {
-  return value === "1d" || value === "7d" || value === "30d" || value === "month";
-}
-
-// --- Compare mode additions ----
-
-export interface CompareState {
-  /** The baseline period, used as the reference point. */
-  baseline: Period;
-  /** The period being compared against the baseline. */
-  comparison: Period;
-}
-
-export const COMPARE_SEPARATOR = "..";
-
-/**
- * Serialize a compare state into a URL-safe query parameter value.
- * Example: 7d..1d for baseline=7d and comparison=1d.
- */
-export function serializeCompareState(state: CompareState): string {
-  return `${state.baseline}${COMPARE_SEPARATOR}${state.comparison}`;
-}
-
-/**
- * Parse a query parameter value into a CompareState.
- * Returns null if the value is invalid or missing.
- */
-export function parseCompareState(value: string | null): CompareState | null {
-  if (!value) return null;
-  const parts = value.split(COMPARE_SEPARATOR);
-  if (parts.length !== 2) return null;
-  const [baseline, comparison] = parts;
-  if (!isValidPeriod(baseline) || !isValidPeriod(comparison)) return null;
-  return { baseline, comparison };
-}
-
-/**
- * Resolve both periods relative to a fixed "now" to avoid drift.
- */
-export function resolveCompareState(
-  state: CompareState,
-  now = new Date(),
-): { baseline: PeriodRange; comparison: PeriodRange } {
-  return {
-    baseline: resolvePeriod(state.baseline, now),
-    comparison: resolvePeriod(state.comparison, now),
-  };
-}
-
-/**
- * Build a query string for the compare state (for use in URLs).
- */
-export function buildCompareQuery(state: CompareState): string {
-  return `compare=${encodeURIComponent(serializeCompareState(state))}`;
+  return (
+    value === "1d" || value === "7d" || value === "30d" || value === "month"
+  );
 }

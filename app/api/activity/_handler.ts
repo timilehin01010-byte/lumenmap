@@ -30,7 +30,6 @@ export type ActivityFetcher = (period: Period) => Promise<ActivityDataset>;
 
 const SUPPORTED_PERIODS = PERIOD_OPTIONS.map((period) => period.value);
 
-
 function recordActivityResponseSize(
   period: string,
   status: "2xx" | "4xx" | "5xx",
@@ -40,7 +39,9 @@ function recordActivityResponseSize(
   metrics.record({ endpoint: "activity", period, status }, bytes);
 }
 
-export function parseActivityPeriod(periodParam: string | null):
+export function parseActivityPeriod(
+  periodParam: string | null,
+):
   | { ok: true; period: Period }
   | { ok: false; body: ApiErrorResponse; status: 400 } {
   if (periodParam === null) {
@@ -76,6 +77,8 @@ export function toVisualizationResponse(
     treemaps: data.treemaps,
     protocols: data.protocols,
     timeseries: data.timeseries,
+    heatmap: data.heatmap,
+    assetVolumes: data.assetVolumes,
     metricProvenance: data.metricProvenance,
   };
 }
@@ -98,6 +101,7 @@ export function toRawResearchResponse(
       sorobanFunctions: data.sorobanFunctions,
       sorobanFunctionContracts: data.sorobanFunctionContracts,
       usdcPaymentVolume: data.usdcPaymentVolume,
+      assetVolumes: data.assetVolumes,
       usdcCategories: data.usdcCategories,
       usdcAccounts: data.usdcAccounts,
     },

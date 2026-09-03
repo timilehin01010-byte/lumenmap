@@ -100,12 +100,15 @@ export function DetailPanel() {
                     ? "Transaction count"
                     : metric === "protocol_tvl"
                       ? "TVL (USD)"
-                      : "Activity count"}
+                      : selectedNode.meta?.assetCode
+                        ? `${selectedNode.meta.assetCode} volume`
+                        : "Activity count"}
             </p>
             <p className="text-lg font-semibold text-white">
               {metric === "protocol_tvl"
                 ? `$${formatNumber(selectedNode.meta?.tvlUsd ?? selectedNode.value)}`
-                : formatNumber(selectedNode.value)}
+                : (selectedNode.meta?.assetAmount ??
+                  formatNumber(selectedNode.value))}
             </p>
           </div>
           <div className="rounded-lg border border-white/10 bg-black/20 p-3">
@@ -133,7 +136,32 @@ export function DetailPanel() {
         {selectedNode.meta?.protocol ? (
           <div>
             <p className="mb-1 text-xs text-zinc-500">Protocol</p>
-            <p className="text-sm text-zinc-200">{selectedNode.meta.protocol}</p>
+            <p className="text-sm text-zinc-200">
+              {selectedNode.meta.protocol}
+            </p>
+          </div>
+        ) : null}
+
+        {selectedNode.meta?.assetCode ? (
+          <div className="space-y-2">
+            <div>
+              <p className="text-xs text-zinc-500">Asset code</p>
+              <p className="font-mono text-sm text-zinc-200">
+                {selectedNode.meta.assetCode}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500">Issuer</p>
+              <p className="break-all font-mono text-xs text-zinc-300">
+                {selectedNode.meta.assetIssuer ?? "Native"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500">Payment operations</p>
+              <p className="text-sm text-zinc-200">
+                {formatNumber(selectedNode.meta.opCount ?? 0)}
+              </p>
+            </div>
           </div>
         ) : null}
 
@@ -144,10 +172,7 @@ export function DetailPanel() {
                 ? "Address"
                 : "ID"}
             </p>
-            <CopyableAddress
-              address={address}
-              type={selectedNode.meta?.type}
-            />
+            <CopyableAddress address={address} type={selectedNode.meta?.type} />
             <StellarExpertLink
               address={address}
               type={selectedNode.meta?.type}
@@ -183,8 +208,8 @@ export function DetailPanel() {
               <div className="flex items-center justify-between">
                 <span className="text-xs text-zinc-500">Named entities</span>
                 <span className="text-xs font-medium text-white">
-                  {selectedNode.meta.coverage.namedEntityCount}{" "}
-                  of {selectedNode.meta.coverage.configuredLimit}
+                  {selectedNode.meta.coverage.namedEntityCount} of{" "}
+                  {selectedNode.meta.coverage.configuredLimit}
                 </span>
               </div>
               <div className="flex items-center justify-between">

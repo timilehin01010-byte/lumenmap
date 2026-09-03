@@ -73,7 +73,8 @@ export const TREEMAP_VIEWS = [
   {
     id: "events",
     label: "Operation Types",
-    description: "Category → operation type or Soroban function → accounts or contracts.",
+    description:
+      "Category → operation type or Soroban function → accounts or contracts.",
   },
   {
     id: "actors",

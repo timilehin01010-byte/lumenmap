@@ -1,77 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, GitCompareArrows, HelpCircle, TrendingUp } from "lucide-react";
+import { AlertTriangle, HelpCircle, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDashboard } from "@/components/dashboard/DashboardProvider";
 import { formatNumber } from "@/lib/utils";
 
-const SUPPORTED_PERIODS = ["1h", "1d", "7d", "30d", "90d"] as const;
-type SupportedPeriod = (typeof SUPPORTED_PERIODS)[number];
-
-type TimeseriesBucket = {
-  operations: number;
-  transactions: number;
-  label: string;
-  isPartial?: boolean;
-};
-
-type TimeseriesData = {
-  buckets: TimeseriesBucket[];
-  granularity?: string;
-};
-
-function isSupportedPeriod(value: string | null): value is SupportedPeriod {
-  return !!value && (SUPPORTED_PERIODS as readonly string[]).includes(value);
-}
-
-function formatSignedNumber(value: number): string {
-  if (value <= 0) return formatNumber(value);
-  return `+${formatNumber(value)}`;
-}
-
-function formatPercentChange(current: number, previous: number): string {
-  if (previous === 0) return current === 0 ? "0.0%" : "—";
-  const change = ((current - previous) / previous) * 100;
-  const sign = change > 0 ? "+" : "";
-  return `${sign}${change.toFixed(1)}%`;
-}
-
 export function TimeSeriesChart() {
   const { data, isLoading, isError, error } = useDashboard();
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
-  const searchParams = useSearchParams();
-  const router = useRouter();
-
-  const compareEnabled = searchParams.get("compare") === "1";
-  const baselineParam = searchParams.get("baseline");
-  const comparisonParam = searchParams.get("comparison");
-  const baselinePeriod = isSupportedPeriod(baselineParam) ? baselineParam : "1d";
-  const comparisonPeriod = isSupportedPeriod(comparisonParam) ? comparisonParam : "7d";
-
-  const updateComparePeriods = (nextBaseline: string, nextComparison: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("compare", "1");
-    params.set("baseline", nextBaseline);
-    params.set("comparison", nextComparison);
-    router.replace(`?${params.toString()}`, { scroll: false });
-  };
 
   const timeseries = data?.timeseries;
-  const comparisonTimeseries = compareEnabled
-    ? (data as unknown as { comparisonTimeseries?: TimeseriesData } | null)
-        ?.comparisonTimeseries
-    : undefined;
-  const comparisonError = compareEnabled
-    ? (data as unknown as { comparisonError?: string } | null)?.comparisonError
-    : undefined;
   const buckets = useMemo(() => timeseries?.buckets ?? [], [timeseries]);
-  const comparisonBuckets = useMemo(
-    () => (compareEnabled && !comparisonError ? comparisonTimeseries?.buckets ?? [] : []),
-    [compareEnabled, comparisonError, comparisonTimeseries],
-  );
 
   // Calculate scales and geometry for responsive SVG
   const width = 800;
@@ -82,18 +23,14 @@ export function TimeSeriesChart() {
   const chartHeight = height - padding.top - padding.bottom;
 
   const maxVal = useMemo(() => {
-    if (buckets.length === 0 && comparisonBuckets.length === 0) return 100;
+    if (buckets.length === 0) return 100;
     let max = 0;
     for (const b of buckets) {
       if (b.operations > max) max = b.operations;
       if (b.transactions > max) max = b.transactions;
     }
-    for (const b of comparisonBuckets) {
-      if (b.operations > max) max = b.operations;
-      if (b.transactions > max) max = b.transactions;
-    }
     return max === 0 ? 100 : Math.ceil(max * 1.15);
-  }, [buckets, comparisonBuckets]);
+  }, [buckets]);
 
   // Points computation
   const points = useMemo(() => {
@@ -114,42 +51,6 @@ export function TimeSeriesChart() {
       };
     });
   }, [buckets, chartWidth, chartHeight, maxVal, padding.left, padding.top]);
-
-  // Comparison points computation
-  const comparisonPoints = useMemo(() => {
-    if (comparisonBuckets.length === 0) return [];
-    const step = comparisonBuckets.length > 1 ? chartWidth / (comparisonBuckets.length - 1) : chartWidth;
-
-    return comparisonBuckets.map((b, i) => {
-      const x = padding.left + (comparisonBuckets.length === 1 ? chartWidth / 2 : i * step);
-      const yOps = padding.top + chartHeight - (b.operations / maxVal) * chartHeight;
-      const yTx = padding.top + chartHeight - (b.transactions / maxVal) * chartHeight;
-
-      return {
-        x,
-        yOps,
-        yTx,
-        bucket: b,
-        index: i,
-      };
-    });
-  }, [comparisonBuckets, chartWidth, chartHeight, maxVal, padding.left, padding.top]);
-
-  const comparisonOpsPath = useMemo(() => {
-    if (comparisonPoints.length === 0) return "";
-    return comparisonPoints.reduce(
-      (acc, p, i) => (i === 0 ? `M ${p.x} ${p.yOps}` : `${acc} L ${p.x} ${p.yOps}`),
-      "",
-    );
-  }, [comparisonPoints]);
-
-  const comparisonTxPath = useMemo(() => {
-    if (comparisonPoints.length === 0) return "";
-    return comparisonPoints.reduce(
-      (acc, p, i) => (i === 0 ? `M ${p.x} ${p.yTx}` : `${acc} L ${p.x} ${p.yTx}`),
-      "",
-    );
-  }, [comparisonPoints]);
 
   // SVG Paths
   const opsPath = useMemo(() => {
@@ -196,42 +97,6 @@ export function TimeSeriesChart() {
     const interval = Math.ceil(points.length / maxLabels);
     return points.filter((_, i) => i % interval === 0 || i === points.length - 1);
   }, [points]);
-
-  const baselineTotals = useMemo(() => {
-    let operations = 0;
-    let transactions = 0;
-    for (const b of buckets) {
-      operations += b.operations;
-      transactions += b.transactions;
-    }
-    return { operations, transactions };
-  }, [buckets]);
-
-  const comparisonTotals = useMemo(() => {
-    let operations = 0;
-    let transactions = 0;
-    for (const b of comparisonBuckets) {
-      operations += b.operations;
-      transactions += b.transactions;
-    }
-    return { operations, transactions };
-  }, [comparisonBuckets]);
-
-  const compareSummary =
-    compareEnabled && comparisonBuckets.length > 0 && !comparisonError
-      ? {
-          operationsDelta: comparisonTotals.operations - baselineTotals.operations,
-          transactionsDelta: comparisonTotals.transactions - baselineTotals.transactions,
-          operationsPercent: formatPercentChange(
-            comparisonTotals.operations,
-            baselineTotals.operations,
-          ),
-          transactionsPercent: formatPercentChange(
-            comparisonTotals.transactions,
-            baselineTotals.transactions,
-          ),
-        }
-      : null;
 
   // Handle explicit states
   if (isLoading) {
@@ -287,232 +152,6 @@ export function TimeSeriesChart() {
           <p className="text-xs text-zinc-400">
             Bucket trend comparison of operations vs transactions ({timeseries?.granularity === "hour" ? "hourly" : "daily"} UTC buckets)
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            onClick={() => {
-              if (compareEnabled) {
-                const params = new URLSearchParams(searchParams.toString());
-                params.delete("compare");
-                params.delete("baseline");
-                params.delete("comparison");
-                router.replace(`?${params.toString()}`, { scroll: false });
-              } else {
-                updateComparePeriods(baselinePeriod, comparisonPeriod);
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-md border border-cyan-900/50 bg-cyan-950/30 px-2.5 py-1 text-xs font-medium text-cyan-300 transition-colors hover:bg-cyan-950/50"
-          >
-            <GitCompareArrows className="h-3.5 w-3.5" />
-            {compareEnabled ? "Exit compare" : "Compare"}
-          </button>
-
-          {compareEnabled && (
-            <>
-              <label className="flex items-center gap-1.5">
-                <span className="text-zinc-400">Baseline</span>
-                <select
-                  value={baselinePeriod}
-                  onChange={(event) => updateComparePeriods(event.target.value, comparisonPeriod)}
-                  className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs font-medium text-zinc-200 focus:border-cyan-700 focus:outline-none"
-                >
-                  {SUPPORTED_PERIODS.map((period) => (
-                    <option key={period} value={period}>
-                      {period}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="flex items-center gap-1.5">
-                <span className="text-zinc-400">Comparison</span>
-                <select
-                  value={comparisonPeriod}
-                  onChange={(event) => updateComparePeriods(baselinePeriod, event.target.value)}
-                  className="rounded-md border border-zinc-700 bg-zinc-950 px-2 py-1 text-xs font-medium text-zinc-200 focus:border-cyan-700 focus:outline-none"
-                >
-                  {SUPPORTED_PERIODS.map((period) => (
-                    <option key={period} value={period}>
-                      {period}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              {compareSummary ? (
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-l border-zinc-800 pl-3 font-mono text-[11px]">
-                  <span className="text-zinc-400">
-                    Ops{" "}
-                    <span className="text-cyan-300">
-                      {formatSignedNumber(compareSummary.operationsDelta)}
-                    </span>{" "}
-                    <span className="text-zinc-500">({compareSummary.operationsPercent})</span>
-                  </span>
-                  <span className="text-zinc-400">
-                    Tx{" "}
-                    <span className="text-cyan-300">
-                      {formatSignedNumber(compareSummary.transactionsDelta)}
-                    </span>{" "}
-                    <span className="text-zinc-500">
-                      ({compareSummary.transactionsPercent})
-                    </span>
-                  </span>
-                </div>
-              ) : (
-                compareEnabled && (
-                  <span className="text-xs text-amber-400/90">
-                    {comparisonError ?? `Comparison data unavailable for ${comparisonPeriod}.`}
-                  </span>
-                )
-              )}
-            </>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="pt-4">
-        {comparisonError && compareEnabled && (
-          <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-900/40 bg-amber-950/20 px-3 py-2 text-xs text-amber-400">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            Comparison period failed to load: {comparisonError}
-          </div>
-        )}
-        {hasData ? (
-          <div className="relative">
-            <svg viewBox={`0 0 ${width} ${height}`} className="w-full">
-              <defs>
-                <linearGradient id="opsArea" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="rgb(34 211 238)" stopOpacity="0.2" />
-                  <stop offset="100%" stopColor="rgb(34 211 238)" stopOpacity="0" />
-                </linearGradient>
-              </defs>
-              {yTicks.map((tick) => (
-                <g key={tick.y}>
-                  <line
-                    x1={padding.left}
-                    x2={width - padding.right}
-                    y1={tick.y}
-                    y2={tick.y}
-                    stroke="rgb(63 63 70)"
-                    strokeDasharray="4 4"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={padding.left - 8}
-                    y={tick.y + 4}
-                    textAnchor="end"
-                    className="fill-zinc-500 text-[10px]"
-                  >
-                    {tick.val}
-                  </text>
-                </g>
-              ))}
-              {xLabels.map((p) => (
-                <text
-                  key={`${p.index}-${p.x}`}
-                  x={p.x}
-                  y={height - padding.bottom + 16}
-                  textAnchor="middle"
-                  className="fill-zinc-500 text-[10px]"
-                >
-                  {p.bucket.label}
-                </text>
-              ))}
-              {opsAreaPath && <path d={opsAreaPath} fill="url(#opsArea)" />}
-              {opsPath && (
-                <path
-                  d={opsPath}
-                  fill="none"
-                  stroke="rgb(34 211 238)"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              )}
-              {txPath && (
-                <path
-                  d={txPath}
-                  fill="none"
-                  stroke="rgb(167 139 250)"
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              )}
-              {comparisonOpsPath && (
-                <path
-                  d={comparisonOpsPath}
-                  fill="none"
-                  stroke="rgb(251 146 60)"
-                  strokeWidth="2"
-                  strokeDasharray="4 4"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              )}
-              {comparisonTxPath && (
-                <path
-                  d={comparisonTxPath}
-                  fill="none"
-                  stroke="rgb(244 114 182)"
-                  strokeWidth="2"
-                  strokeDasharray="4 4"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              )}
-              {points.map((point) => {
-                const isActive = hoverIndex === point.index;
-                return (
-                  <g
-                    key={point.index}
-                    transform={`translate(${point.x}, ${point.yOps})`}
-                    onMouseEnter={() => setHoverIndex(point.index)}
-                    onMouseLeave={() => setHoverIndex(null)}
-                  >
-                    <circle r={isActive ? 6 : 3} fill="rgb(34 211 238)" />
-                  </g>
-                );
-              })}
-            </svg>
-            {activeBucket && (
-              <div className="pointer-events-none absolute top-2 right-2 rounded-md border border-zinc-800 bg-zinc-950/90 px-3 py-2 text-xs">
-                <div className="font-semibold text-zinc-300">{activeBucket.label}</div>
-                <div className="mt-1 flex items-center gap-4 font-mono">
-                  <span className="text-cyan-400">{formatNumber(activeBucket.operations)} ops</span>
-                  <span className="text-violet-400">{formatNumber(activeBucket.transactions)} tx</span>
-                </div>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex h-[260px] items-center justify-center gap-2 text-sm text-zinc-500">
-            <HelpCircle className="h-4 w-4" />
-            No activity data available for the selected period
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}ary.operationsPercent})</span>
-                  </span>
-                  <span className="text-zinc-400">
-                    Tx{" "}
-                    <span className="text-amber-300">
-                      {formatSignedNumber(compareSummary.transactionsDelta)}
-                    </span>{" "}
-                    <span className="text-zinc-500">({compareSummary.transactionsPercent})</span>
-                  </span>
-                </div>
-              ) : (
-                compareEnabled && (
-                  <span className="text-xs text-amber-400/90">
-                    {comparisonError ?? `Comparison data unavailable for ${comparisonPeriod}.`}
-                  </span>
-                )
-              )}
-            </>
-          )}
         </div>
 
         {/* Accessible Legend - Visual distinction without color alone */}
